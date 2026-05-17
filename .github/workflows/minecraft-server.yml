@@ -1,0 +1,404 @@
+name: 🎮 StoneBlock 4 — Professional Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_ram:
+        description: 'RAM للسيرفر (مثال: 5G)'
+        required: false
+        default: '5G'
+      admin_name:
+        description: 'اسم الأدمن الرئيسي (Minecraft username)'
+        required: true
+
+jobs:
+  minecraft-server:
+    name: 🚀 Professional Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+
+    steps:
+
+      # ══════════════════════════════════════════
+      # 1. تحضير البيئة
+      # ══════════════════════════════════════════
+      - name: 📦 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      # ══════════════════════════════════════════
+      # 2. استعادة World المحفوظة (إن وُجدت)
+      # ══════════════════════════════════════════
+      - name: 💾 استعادة World السابق
+        uses: actions/download-artifact@v4
+        with:
+          name: world-latest-backup
+          path: server/
+        continue-on-error: true
+
+      # ══════════════════════════════════════════
+      # 3. تحميل وتثبيت StoneBlock 4
+      # ══════════════════════════════════════════
+      - name: 📥 تحميل FTB CLI
+        run: |
+          wget -q https://api.feed-the-beast.com/v1/modpacks/public/ftb-app/linux -O ftb-installer
+          chmod +x ftb-installer
+
+      - name: 📦 تثبيت StoneBlock 4
+        run: |
+          mkdir -p server
+          ./ftb-installer install 116 latest --path ./server --auto-accept
+
+      # ══════════════════════════════════════════
+      # 4. إعداد ملفات الإعداد الاحترافية
+      # ══════════════════════════════════════════
+      - name: ⚙️ server.properties (إعداد احترافي)
+        run: |
+          cat > server/server.properties << 'EOF'
+          # ════════════════════════════════
+          # إعدادات السيرفر الاحترافي
+          # ════════════════════════════════
+
+          # الاتصال
+          server-port=25565
+          online-mode=false
+          max-players=20
+
+          # الأداء
+          view-distance=10
+          simulation-distance=8
+          max-tick-time=60000
+
+          # اللعب
+          difficulty=normal
+          gamemode=survival
+          pvp=true
+          allow-nether=true
+          allow-flight=true
+
+          # الحفظ التلقائي
+          save-on-stop=true
+
+          # الأمان
+          spawn-protection=16
+          enforce-whitelist=false
+          white-list=false
+          max-world-size=15000
+
+          # الرسائل
+          motd=\u00a76\u00a7lStoneBlock 4 \u00a7r\u00a7f| \u00a7aAhmad Server \u00a7r\u00a7f| \u00a7eOnline!
+
+          # متفرقات
+          enable-command-block=true
+          broadcast-console-to-ops=true
+          broadcast-rcon-to-ops=true
+          level-name=world
+          level-seed=
+          EOF
+
+      - name: ✅ قبول EULA
+        run: echo "eula=true" > server/eula.txt
+
+      # ══════════════════════════════════════════
+      # 5. نظام الرتب والأدمن (FTB Ranks)
+      # ══════════════════════════════════════════
+      - name: 👑 إعداد نظام الرتب
+        run: |
+          mkdir -p server/config/ftbranks
+          cat > server/config/ftbranks/ranks.txt << 'EOF'
+          # ════════════════════════════════════════
+          # نظام الرتب — StoneBlock 4 Server
+          # ════════════════════════════════════════
+
+          rank default {
+              ftbessentials.home
+              ftbessentials.home.set
+              ftbessentials.tpa
+              ftbessentials.tpaccept
+              ftbessentials.tpdeny
+              ftbessentials.warp
+              ftbessentials.back
+              ftbessentials.rtp
+              minecraft.command.me
+              minecraft.command.tell
+          }
+
+          rank vip extends default {
+              ftbessentials.home.max=5
+              ftbessentials.fly
+              ftbessentials.nick
+              ftbessentials.top
+              ftbessentials.speed
+          }
+
+          rank moderator extends vip {
+              ftbessentials.home.max=10
+              minecraft.command.kick
+              minecraft.command.ban
+              minecraft.command.pardon
+              minecraft.command.mute
+              ftbessentials.teleport
+              ftbessentials.tp
+              ftbessentials.tpall
+              ftbessentials.freeze
+              ftbchunks.admin
+          }
+
+          rank admin extends moderator {
+              *
+          }
+          EOF
+
+      - name: 👑 تعيين الأدمن الرئيسي
+        run: |
+          mkdir -p server/config/ftbranks
+          cat > server/config/ftbranks/players.txt << EOF
+          # الأدمن الرئيسي
+          player ${{ github.event.inputs.admin_name }} admin
+          EOF
+
+      # ══════════════════════════════════════════
+      # 6. إعدادات FTB Essentials
+      # ══════════════════════════════════════════
+      - name: 🛠️ إعداد FTB Essentials
+        run: |
+          mkdir -p server/config/ftbessentials
+          cat > server/config/ftbessentials/config.json << 'EOF'
+          {
+            "rtp": {
+              "enabled": true,
+              "min_distance": 1000,
+              "max_distance": 5000,
+              "cooldown": 300
+            },
+            "home": {
+              "max_homes": 3,
+              "cooldown": 0
+            },
+            "tpa": {
+              "enabled": true,
+              "timeout": 60,
+              "cooldown": 30
+            },
+            "back": {
+              "enabled": true,
+              "on_death": true,
+              "cooldown": 30
+            },
+            "warp": {
+              "enabled": true
+            },
+            "spawn": {
+              "cooldown": 10
+            },
+            "afk": {
+              "enabled": true,
+              "timeout_minutes": 10
+            },
+            "nick": {
+              "enabled": true,
+              "max_length": 16
+            },
+            "motd": [
+              "&6&lمرحباً &e{player} &6&lفي سيرفرنا!",
+              "&fاكتب &a/help &fلرؤية الأوامر المتاحة",
+              "&fاكتب &a/spawn &fللعودة للنقطة الرئيسية",
+              "&fاكتب &a/rtp &fللانتقال لمكان عشوائي",
+              "&7&oSurvival · StoneBlock 4 · Have Fun!"
+            ]
+          }
+          EOF
+
+      # ══════════════════════════════════════════
+      # 7. الحفظ التلقائي كل 5 دقائق
+      # ══════════════════════════════════════════
+      - name: 💾 سكريبت الحفظ التلقائي
+        run: |
+          cat > /home/runner/auto-save.sh << 'SCRIPT'
+          #!/bin/bash
+          # الحفظ التلقائي كل 5 دقائق
+          SAVE_INTERVAL=300
+          SERVER_DIR="/home/runner/work/minecraft-stoneblock4/minecraft-stoneblock4/server"
+          FIFO="$SERVER_DIR/server_input"
+
+          echo "[AutoSave] بدأ نظام الحفظ التلقائي كل 5 دقائق"
+
+          while true; do
+            sleep $SAVE_INTERVAL
+            if [ -p "$FIFO" ]; then
+              echo "save-all" > "$FIFO"
+              TIMESTAMP=$(date '+%H:%M:%S')
+              echo "[AutoSave] [$TIMESTAMP] تم حفظ العالم تلقائياً"
+            fi
+          done
+          SCRIPT
+          chmod +x /home/runner/auto-save.sh
+
+      # ══════════════════════════════════════════
+      # 8. سكريبت النسخ الاحتياطية كل ساعة
+      # ══════════════════════════════════════════
+      - name: 🗄️ سكريبت النسخ الاحتياطية
+        run: |
+          cat > /home/runner/auto-backup.sh << 'SCRIPT'
+          #!/bin/bash
+          BACKUP_INTERVAL=3600
+          SERVER_DIR="/home/runner/work/minecraft-stoneblock4/minecraft-stoneblock4/server"
+          BACKUP_DIR="/home/runner/backups"
+
+          mkdir -p "$BACKUP_DIR"
+          echo "[Backup] بدأ نظام النسخ الاحتياطية كل ساعة"
+
+          while true; do
+            sleep $BACKUP_INTERVAL
+            TIMESTAMP=$(date '+%Y-%m-%d_%H-%M')
+            BACKUP_NAME="world_backup_$TIMESTAMP"
+
+            echo "[Backup] [$TIMESTAMP] جاري إنشاء نسخة احتياطية..."
+            cp -r "$SERVER_DIR/world" "$BACKUP_DIR/$BACKUP_NAME" 2>/dev/null
+            cp -r "$SERVER_DIR/world_nether" "$BACKUP_DIR/${BACKUP_NAME}_nether" 2>/dev/null
+            cp -r "$SERVER_DIR/world_the_end" "$BACKUP_DIR/${BACKUP_NAME}_end" 2>/dev/null
+
+            # الاحتفاظ بآخر 3 نسخ فقط
+            ls -t "$BACKUP_DIR" | tail -n +10 | xargs -I {} rm -rf "$BACKUP_DIR/{}"
+
+            echo "[Backup] ✅ تمت النسخة الاحتياطية: $BACKUP_NAME"
+          done
+          SCRIPT
+          chmod +x /home/runner/auto-backup.sh
+
+      # ══════════════════════════════════════════
+      # 9. سكريبت تشغيل السيرفر الرئيسي
+      # ══════════════════════════════════════════
+      - name: 🎮 إعداد سكريبت التشغيل
+        run: |
+          cat > server/run-server.sh << EOF
+          #!/bin/bash
+          RAM="${{ github.event.inputs.max_ram }}"
+
+          # إنشاء FIFO لإرسال الأوامر
+          mkfifo server_input 2>/dev/null || true
+
+          # تشغيل السيرفر مع أفضل إعدادات الأداء
+          java -Xmx\${RAM} -Xms2G \\
+            -XX:+UseG1GC \\
+            -XX:+ParallelRefProcEnabled \\
+            -XX:MaxGCPauseMillis=200 \\
+            -XX:+UnlockExperimentalVMOptions \\
+            -XX:+DisableExplicitGC \\
+            -XX:G1NewSizePercent=30 \\
+            -XX:G1MaxNewSizePercent=40 \\
+            -XX:G1HeapRegionSize=8M \\
+            -XX:G1ReservePercent=20 \\
+            -XX:InitiatingHeapOccupancyPercent=15 \\
+            -XX:SurvivorRatio=32 \\
+            -XX:+PerfDisableSharedMem \\
+            -XX:MaxTenuringThreshold=1 \\
+            @user_jvm_args.txt \\
+            @libraries/net/neoforged/neoforge/*/unix_args.txt \\
+            nogui < server_input
+          EOF
+          chmod +x server/run-server.sh
+
+      # ══════════════════════════════════════════
+      # 10. تثبيت playit.gg
+      # ══════════════════════════════════════════
+      - name: 🌐 تثبيت playit.gg
+        run: |
+          curl -SsL https://playit-cloud.github.io/ppa/key.gpg | gpg --dearmor | \
+            sudo tee /etc/apt/trusted.gpg.d/playit.gpg >/dev/null
+          echo "deb [signed-by=/etc/apt/trusted.gpg.d/playit.gpg] \
+            https://playit-cloud.github.io/ppa/v0 . /" | \
+            sudo tee /etc/apt/sources.list.d/playit-cloud.list
+          sudo apt update -qq
+          sudo apt install -y playit
+
+      # ══════════════════════════════════════════
+      # 11. تشغيل كل شيء معاً
+      # ══════════════════════════════════════════
+      - name: 🚀 تشغيل السيرفر الاحترافي
+        env:
+          PLAYIT_SECRET: ${{ secrets.PLAYIT_TOKEN }}
+          ADMIN_NAME: ${{ github.event.inputs.admin_name }}
+        run: |
+          cd server
+
+          echo "════════════════════════════════════"
+          echo " 🎮 تشغيل StoneBlock 4 Server"
+          echo " 👑 الأدمن: $ADMIN_NAME"
+          echo " 💾 RAM: ${{ github.event.inputs.max_ram }}"
+          echo "════════════════════════════════════"
+
+          # تشغيل السيرفر
+          bash run-server.sh &
+          SERVER_PID=$!
+
+          # انتظار بدء السيرفر
+          echo "⏳ انتظار بدء السيرفر..."
+          for i in {1..90}; do
+            if grep -q "Done" logs/latest.log 2>/dev/null; then
+              echo "✅ السيرفر بدأ بنجاح!"
+              break
+            fi
+            sleep 10
+          done
+
+          # تشغيل نظام الحفظ التلقائي
+          bash /home/runner/auto-save.sh &
+          echo "💾 نظام الحفظ التلقائي يعمل (كل 5 دقائق)"
+
+          # تشغيل نظام النسخ الاحتياطية
+          bash /home/runner/auto-backup.sh &
+          echo "🗄️ نظام النسخ الاحتياطية يعمل (كل ساعة)"
+
+          # تشغيل Tunnel
+          playit --secret "$PLAYIT_SECRET" &
+          echo "🌐 Tunnel يعمل — راجع playit.gg/account للعنوان"
+
+          echo ""
+          echo "════════════════════════════════════"
+          echo " ✅ السيرفر يعمل بالكامل!"
+          echo " 👑 الأوامر المتاحة للأدمن:"
+          echo "    /op <اسم>       تعيين أدمن"
+          echo "    /deop <اسم>     إزالة أدمن"
+          echo "    /ban <اسم>      حظر لاعب"
+          echo "    /kick <اسم>     طرد لاعب"
+          echo "    /whitelist add  إضافة للقائمة"
+          echo "    /save-all       حفظ يدوي"
+          echo "    /stop           إيقاف السيرفر"
+          echo "════════════════════════════════════"
+
+          # إبقاء السيرفر يعمل
+          wait $SERVER_PID
+
+      # ══════════════════════════════════════════
+      # 12. حفظ World عند الإيقاف
+      # ══════════════════════════════════════════
+      - name: 💾 حفظ World النهائي
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-latest-backup
+          path: |
+            server/world/
+            server/world_nether/
+            server/world_the_end/
+            server/config/
+            server/ops.json
+            server/whitelist.json
+            server/banned-players.json
+          retention-days: 30
+
+      - name: 🗄️ حفظ نسخة باسم التاريخ
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            server/world/
+            server/world_nether/
+          retention-days: 14
